@@ -1,14 +1,19 @@
 const Canvas = require('canvas');
-const Discord = require("discord.js");
-const client = new Discord.Client();
+const { Client, Intents } = require("discord.js");
 const fs = require('fs');
 
+//  The Discord client, see intent docs: https://discord.com/developers/docs/topics/gateway#list-of-intents
+const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.DIRECT_MESSAGES] });
+
 let raid  = {};
-let guild = undefined;
+const guilds = ['892906237799321650', '191716294943440897'];  //  test server, IL
 
 client.on("ready", () => {
-    guild = client.guilds.cache.get('191716294943440897');
-    console.log(guild.name);
+    console.log(`Logged in as ${client.user.tag}!`);
+
+    client.guilds.cache.forEach(guild => {
+        console.log('Handling guild: ' + guild.name + ' [' + guild.id + ']');
+    });
 });
 
 'use strict';
@@ -781,7 +786,8 @@ function process(message) {
     } else if (text.startsWith(commandPrefix) && 'dsmrt'.includes(text[1])) {	
 	let user = message.member.user;
 	let name = user.tag;
-	let member = guild.member(message.author);
+	//let member = guild.member(message.author);
+    let member = message.member.displayName;
 	let avatarURL = message.author.displayAvatarURL().replace('.webp', '.png')
 	console.log(avatarURL);
 	let nickname = member ? member.displayName : undefined;
@@ -908,17 +914,17 @@ function process(message) {
 }
 
 
-client.on("message", (message) => {
-    if (message.guild != guild) {
-	console.log(message.guild.name);
-	return;
+client.on("messageCreate", (message) => {
+    if (message.guild in guilds) {
+        console.log(message.guild.name);
+        return;
     }
-    if (message.channel instanceof Discord.DMChannel) {
-	chat(message);
+    if (message.channel.type == 'DM') {
+        chat(message);
     } else if (message.content.startsWith(commandPrefix)) {
-	process(message);
+        process(message);
     } else {
-	alpaca(message); // for Ags
+        alpaca(message); // for Ags
     }
 });
 var ID = fs.readFileSync('token.txt').toString().trim();
