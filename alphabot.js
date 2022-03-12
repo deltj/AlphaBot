@@ -66,7 +66,7 @@ const dateInfo = '\nBy default, you will be responding to the next raid; you can
 const earlyLate = '\nYou can also include the words *late* or *early* to indicate if you will be joining late or leaving early (or even both).\n';
 const feedback = '\nIf anything seems broken or unpleasant, just tag *satuelisa* and express your concerns. <:Agswarrior:552592567875928064>'; 
 const options = roleInfo + earlyLate + dateInfo + '\nUse __**h**ustle__ to see this help text and __**r**aid__ to just view the sign-ups.';
-const help = '**Available commands**:' + '\n(put a ' + commandPrefix + ' in the beginning to address the bot)\n' + '\n__**s**ignup__ if you will attend the next raid\n__**m**aybe__ if you might be able to attend\n__**d**ecline__ if you will not make it\n' + options;
+const help = '**Available commands**:' + '\n(put a ' + commandPrefix + ' in the beginning to address the bot)\n' + '\n__slot N__ sign up to play slot N in the next raid\n__slot clear__ clear a slot that you\'ve signed up for\n__slots__ list the signups for the next raid\n';
 
 const symbols = {0: ':confused:', 1: '<:damage:667107746868625458>',
          2: '<:support:667107765872754738>',
@@ -522,15 +522,22 @@ function listing(channel, day) {
     return list;
 }
 
+/**
+ * Respond to "alpaca" with a llama graphic
+ * @param {*} message 
+ */
 function alpaca(message) {
-    var text = message.content.toLowerCase();
-    var n = (text.match(/alpaca/g) || []).length;
+    //  Check if there are any alpacas
+    const text = message.content.toLowerCase();
+    const n = (text.match(/alpaca/g) || []).length;
     if (n > 0) {
-    var a = '';
-    for (var i = 0; i < n; i++) {
-        a += ':llama:';
-    }
-    message.channel.send(a);
+
+        //  Reply with a llama graphic for each instance of the word alpaca
+        var a = '';
+        for (var i = 0; i < n; i++) {
+            a += ':llama:';
+        }
+        message.channel.send(a);
     }
 }
 
@@ -772,152 +779,46 @@ function signupForSlot(nick, day, slot, clear) {
     }
 }
 
+/**
+ * Process a command
+ * @param {*} message 
+ */
 async function process(message) {
-    var text = message.content.toLowerCase();
-    var channel = message.channel;
-    if (!channel.name.includes('alpha')) { // ignore other channels
-    return;
-    } else if (channel.name != 'alpha-signup') {
-    channel.send('I have been confined to the <#667529156212293664> channel. Please talk to me there.')
-    return;
-    }
-    if (text.includes(commandPrefix + 'clear')) {
-    return; // that is for another bot
-    }
-    if (text.startsWith(commandPrefix + 'h')) {
-    channel.send(help);
-    } else if (text.startsWith(commandPrefix) && 'dsmrt'.includes(text[1])) {	
-    let user = message.member.user;
-    let name = user.tag;
-    //let member = guild.member(message.author);
+    
+    const channel = message.channel;
 
-    const _user = await client.users.fetch(message.member.user.id);
-    const _member = await il_guild.members.fetch(user);
-    let nickname = _member.displayName;
+    //  Only listen to alpha channels
+    if (channel.name.includes('alpha')) {
+    
+        //  Only process commands in the alpha-signup channel
+        if (channel.name == 'alpha-signup') {
 
-    let member = message.member.displayName;
-    let avatarURL = message.author.displayAvatarURL().replace('.webp', '.png')
-    console.log(avatarURL);
-    //let nickname = member ? member.displayName : undefined;
-    if (nickname == undefined) {
-        nickname = name.split('#')[0]; // skip the Discord ID number when making a default nickname
-    }
-    var curr = {'role': roleSelection(text),
-            'rss': rssSelection(text),
-            'class': classSelection(text),
-            'specs': specsSelection(text)};
-    var defs = currentDefault(name);
-    if (debugMode) {
-        console.log(text);
-    }
-    if (text.startsWith(commandPrefix + 'def')) { // default step requested with !default or !def
-        manageDefaults(name, nickname, defs, curr, channel);
-    } else if (text.startsWith(commandPrefix + 'toon')) { // register a toon definition
-        manageToons(name, nickname, channel, text);
-    } else { // response or raid listing (other raid commands than default)
-        loadLogs();
-        if (debugMode) {
-        console.log(name, curr['role'], defs['role']);
-        }
-        var specDate = daySpec(text);
-        var day = raidDate(specDate);
-        if (text[1] == 'r') { // raid listing requested
-        if (debugMode) {
-            console.log('listing requested');
-        }
-        if (day != ALL) {
-            listRaid(channel, day);
-        } else { // all week requested
-            var r = 'Showing all responses.\n';
-            for (var i = 0; i < raidNights.length; i++) {
-            r += listRaid(undefined, raidNights[i], false);
-            }
-            channel.send(r);
-        }
-        return;
-        } else { // a new response has been given with !signup
-        if (curr['role'] == 0) {
-            if (debugMode) {
-            console.log('Using default role');
-            }
-            curr['role'] = defs['role']; // use default whenever none is given
-        }
-        if (curr['role'] == defs['role'] && curr['rss'] == 0) {
-            if (debugMode) {
-            console.log('Using default rss');
-            }
-            curr['rss'] = defs['rss']; // use default whenever none is given
-        }
-        if (curr['role'] == defs['role'] && curr['rss'] == defs['rss'] && curr['class'] == 0) {
-            if (debugMode) {
-            console.log('Using default class');
-            }
-            curr['class'] = defs['class']; // use default whenever none is given
-            if (curr['specs'].length == 0) { // also use default specs if there was none and the other data matches
-            curr['specs'] = defs['specs'];
-            }
-        }
-        var status = 0;
-        var timing = 0;
-        if (text.includes(' l') && text.includes(' e')) {
-            timing = 1;
-        } else if (text.includes(' l')) {
-            timing = 2;
-        } else if (text.includes(' e')) {
-            timing = 3;
-        }
-        if (text[1] == 'm' || text.includes(' maybe')) { 
-            status = 2; // maybe
-        } else if (text[1] == 'd' || text.includes(' decline') || text.includes(' no ') || text.includes(' not ')) { 
-            status = 3; // decline
-        } else if (text[1] == 's' || text.includes(' yes ') || text.includes(' confirm')) { 
-            status = 1; // signup
-        } else {
-            if (debugMode) {
-            console.log(text);
-            }
-            return;
-        }
-        if (status != 0) { // a valid response
-            if (curr['role'] == 0 && day != ALL) {
-            curr = currentStatus(name, day); // check if one is set
-            }
-            var url = avatarURL;
-            if (url == undefined) {
-            url = "undefined";
-            }
-            var data = [status, curr['role'], curr['rss'], curr['class'], timing, name, nickname, url, curr['specs']]; // RESPONSE FILE SYNTAX
-            var appendix = '';
-            if (specDate == -1) { // no date was specified
-            appendix = '\nYou have responded for the *next raid* which is on ' + dayNames[day] + '; to specify a date, include one of Mon Fri Sat in your command.';
-            }
+            const text = message.content.toLowerCase();
             
-            if (day != ALL) { // one-day response
-            if (text.includes('slot')) {
-                var slot = parseInt(text.substring(text.indexOf('slot') + 4)) || 0;
-                channel.send(signupForSlot(nickname, day, slot, text.includes('clear')));
-                return;
-            } 
-            if (updateStatus(data, day)) { // an update on an existing response
-                channel.send(reply(data, day));
-            } else { // a new response
-                addResponse(data, day, message, true);
+            //  Respond to help
+            if (text.startsWith(commandPrefix + 'h')) {
+                channel.send(help);
             }
-            } else { // response for all raids
-            if (debugMode) {
-                console.log('weekly response');
-            }			
-            for (var i = 0; i < raidNights.length; i++) {
-                var rn = raidNights[i];
-                if (!updateStatus(data, rn)) { // update if exists
-                addResponse(data, rn, message, false, false); // add if it does not
+        
+            //  Respond to other commands
+            else if (text.startsWith(commandPrefix) && 'dsmrt'.includes(text[1])) {  //  Filter by first letter of available commands
+                const user = message.member.user;
+                const member = await il_guild.members.fetch(user);
+                const nickname = member.displayName;
+
+                //  The slot command is the only onw IL uses at the moment
+                if (text.includes('slot')) {
+
+                    const specDate = daySpec(text);
+                    const day = raidDate(specDate);
+                    const slot = parseInt(text.substring(text.indexOf('slot') + 4)) || 0;
+
+                    channel.send(signupForSlot(nickname, day, slot, text.includes('clear')));
                 }
             }
-            ack(data, day, message, reply(data, day) + appendix); // thank the user
-            }
+        } else {
+            channel.send('I have been confined to the <#667529156212293664> channel. Please talk to me there.')
         }
-        }
-    }
     }
 }
 
